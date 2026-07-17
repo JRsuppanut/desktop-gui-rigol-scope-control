@@ -73,7 +73,7 @@ class ScopeApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Rigol Oscilloscope GUI from Suppanut")
-        self.geometry("1280x720")
+        self.geometry("1980x1080")
         self.scope_controller = ScopeController()
         self.command_history = []
         self.max_history_entries = 30
