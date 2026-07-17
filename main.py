@@ -139,6 +139,32 @@ class ScopeApp(tk.Tk):
         self.clear_button = ttk.Button(button_row, text="Clear Output", command=self.clear_output)
         self.clear_button.pack(side="left", padx=5)
 
+        mode_row = ttk.Frame(control_frame)
+        mode_row.pack(fill="x", pady=(0, 8))
+
+        ttk.Label(mode_row, text="Mode:").pack(side="left", padx=5)
+        self.mode_buttons = {}
+        for label, scpi_mode in [("AUTO", "AUTO"), ("NORMAL", "NORM"), ("SINGLE", "SING")]:
+            btn = ttk.Button(mode_row, text=label, state=tk.DISABLED,
+                             command=lambda m=scpi_mode: self.set_scope_mode(m))
+            btn.pack(side="left", padx=4)
+            self.mode_buttons[label] = btn
+
+        trigger_row = ttk.Frame(control_frame)
+        trigger_row.pack(fill="x", pady=(0, 8))
+
+        ttk.Label(trigger_row, text="Offset:").pack(side="left", padx=5)
+        self.trigger_offset_entry = ttk.Entry(trigger_row, width=10, state=tk.DISABLED)
+        self.trigger_offset_entry.pack(side="left", padx=4)
+
+        ttk.Label(trigger_row, text="Duty (%):").pack(side="left", padx=5)
+        self.trigger_duty_entry = ttk.Entry(trigger_row, width=10, state=tk.DISABLED)
+        self.trigger_duty_entry.pack(side="left", padx=4)
+
+        self.trigger_apply_button = ttk.Button(trigger_row, text="Apply Trigger", state=tk.DISABLED,
+                                               command=self.apply_trigger_settings)
+        self.trigger_apply_button.pack(side="left", padx=8)
+
         # Channel panels: 2x2 grid with richer controls per channel
         # Channel panels in a single horizontal row
         panels_frame = ttk.Frame(control_frame)
@@ -461,6 +487,11 @@ class ScopeApp(tk.Tk):
             # ล็อกปุ่มอื่นๆ
             self.run_toggle_button.config(state=tk.DISABLED)
             self.send_button.config(state=tk.DISABLED)
+            for btn in self.mode_buttons.values():
+                btn.config(state=tk.DISABLED)
+            self.trigger_offset_entry.config(state=tk.DISABLED)
+            self.trigger_duty_entry.config(state=tk.DISABLED)
+            self.trigger_apply_button.config(state=tk.DISABLED)
             self.set_channel_controls_state(tk.DISABLED)
             return
 
@@ -482,9 +513,15 @@ class ScopeApp(tk.Tk):
             # ปลดล็อกปุ่มควบคุมระบบหลัก
             self.run_toggle_button.config(state=tk.NORMAL)
             self.send_button.config(state=tk.NORMAL)
+            for btn in self.mode_buttons.values():
+                btn.config(state=tk.NORMAL)
+            self.trigger_offset_entry.config(state=tk.NORMAL)
+            self.trigger_duty_entry.config(state=tk.NORMAL)
+            self.trigger_apply_button.config(state=tk.NORMAL)
             self.set_channel_controls_state(tk.NORMAL)
             for channel in self.channel_widgets:
                 self.populate_channel_settings(channel)
+            self.populate_trigger_settings()
             
         except RuntimeError as e:
             messagebox.showerror("Connection Error", str(e))
@@ -534,6 +571,48 @@ class ScopeApp(tk.Tk):
         self.output_text.config(state=tk.NORMAL)
         self.output_text.delete(1.0, tk.END)
         self.output_text.config(state=tk.DISABLED)
+
+    def set_scope_mode(self, mode):
+        if self.scope_controller.scope is None:
+            self.log_message("[!] Connect the instrument before changing mode.")
+            return
+        try:
+            self.scope_controller.write(f":TRIGger:MODE {mode}")
+            self.log_message(f"Mode set to {mode}")
+        except Exception as e:
+            self.log_message(f"[!] Unable to set mode: {e}")
+
+    def apply_trigger_settings(self):
+        if self.scope_controller.scope is None:
+            self.log_message("[!] Connect the instrument before applying trigger settings.")
+            return
+
+        try:
+            offset_value = float(self.trigger_offset_entry.get())
+            duty_value = float(self.trigger_duty_entry.get())
+            self.scope_controller.write(f":TRIGger:OFFSet {offset_value}")
+            self.scope_controller.write(f":TRIGger:DUTY {duty_value}")
+            self.log_message(f"Trigger offset set to {offset_value}, duty set to {duty_value}%")
+        except ValueError:
+            self.log_message("[!] Invalid trigger offset or duty value.")
+        except Exception as e:
+            self.log_message(f"[!] Unable to apply trigger settings: {e}")
+
+    def populate_trigger_settings(self):
+        if self.scope_controller.scope is None:
+            return
+        try:
+            offset_response = self.scope_controller.query(":TRIGger:OFFSet?").strip()
+            if offset_response:
+                self.trigger_offset_entry.delete(0, tk.END)
+                self.trigger_offset_entry.insert(0, self.format_float(float(offset_response)))
+
+            duty_response = self.scope_controller.query(":TRIGger:DUTY?").strip()
+            if duty_response:
+                self.trigger_duty_entry.delete(0, tk.END)
+                self.trigger_duty_entry.insert(0, self.format_float(float(duty_response)))
+        except Exception as e:
+            self.log_message(f"[!] Unable to read trigger settings: {e}")
 
     def refresh_devices(self):
         try:
