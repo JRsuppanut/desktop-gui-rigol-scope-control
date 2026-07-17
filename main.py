@@ -135,43 +135,25 @@ class ScopeApp(tk.Tk):
         self.run_toggle_button = ttk.Button(button_row, text="Run", command=self.toggle_run_stop, state=tk.DISABLED)
         self.run_toggle_button.pack(side="left", padx=5)
         
-        self.clear_button = ttk.Button(button_row, text="Clear Response", command=self.clear_response)
+        self.clear_button = ttk.Button(button_row, text="Clear Output", command=self.clear_output)
         self.clear_button.pack(side="left", padx=5)
         
-        self.response_title_label = ttk.Label(control_frame, text="Response:")
-        self.response_title_label.pack(anchor="w", padx=5, pady=(10, 2))
+        self.output_title_label = ttk.Label(control_frame, text="Response / System Log:")
+        self.output_title_label.pack(anchor="w", padx=5, pady=(10, 2))
         
-        self.response_text = tk.Text(control_frame, state=tk.DISABLED, bg="#f4f4f4")
-        self.response_text.pack(fill="both", expand=True, padx=5, pady=(0, 5))
-        
-        # ---  ส่วนที่ 4: กล่องแสดงผล (System Log) ---
-        log_frame = ttk.LabelFrame(main_frame, text="System Log", padding=10)
-        log_frame.grid(row=1, column=0, sticky="nsew")
-        log_frame.rowconfigure(0, weight=1)
-        log_frame.columnconfigure(0, weight=1)
-
-        self.log_text = tk.Text(log_frame, state=tk.DISABLED, bg="#f4f4f4")
-        self.log_text.grid(row=0, column=0, sticky="nsew")
-        clear_log_button = ttk.Button(log_frame, text="Clear Log", command=self.clear_log)
-        clear_log_button.grid(row=1, column=0, pady=5)
+        self.output_text = tk.Text(control_frame, state=tk.DISABLED, bg="#f4f4f4")
+        self.output_text.pack(fill="both", expand=True, padx=5, pady=(0, 5))
         
         self.is_running = False
         self.refresh_devices()
 
     # --- ฟังก์ชันการทำงาน (Event Handlers) ---
     def log_message(self, message):
-        """ฟังก์ชันช่วยเหลือสำหรับพิมพ์ข้อความลงในกล่อง Log"""
-        self.log_text.config(state=tk.NORMAL)
-        self.log_text.insert(tk.END, message + "\n")
-        self.log_text.see(tk.END)
-        self.log_text.config(state=tk.DISABLED)
-
-    def response_message(self, message):
-        """ฟังก์ชันช่วยเหลือสำหรับพิมพ์ข้อความลงในกล่อง Response"""
-        self.response_text.config(state=tk.NORMAL)
-        self.response_text.insert(tk.END, message + "\n")
-        self.response_text.see(tk.END)
-        self.response_text.config(state=tk.DISABLED)
+        """ฟังก์ชันช่วยเหลือสำหรับพิมพ์ข้อความลงในกล่อง output เดียว"""
+        self.output_text.config(state=tk.NORMAL)
+        self.output_text.insert(tk.END, message + "\n")
+        self.output_text.see(tk.END)
+        self.output_text.config(state=tk.DISABLED)
 
     def connect_scope(self):
         # กรณีที่ 1: ถ้าปุ่มเป็น DISCONNECT ให้ทำการตัดการเชื่อมต่อ
@@ -250,15 +232,10 @@ class ScopeApp(tk.Tk):
             self.log_message(f"[!] Error: {e}")
             self.response_message(f"[!] Error: {e}")
 
-    def clear_response(self):
-        self.response_text.config(state=tk.NORMAL)
-        self.response_text.delete(1.0, tk.END)
-        self.response_text.config(state=tk.DISABLED)
-
-    def clear_log(self):
-        self.log_text.config(state=tk.NORMAL)
-        self.log_text.delete(1.0, tk.END)
-        self.log_text.config(state=tk.DISABLED)
+    def clear_output(self):
+        self.output_text.config(state=tk.NORMAL)
+        self.output_text.delete(1.0, tk.END)
+        self.output_text.config(state=tk.DISABLED)
 
     def refresh_devices(self):
         try:
