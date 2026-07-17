@@ -82,7 +82,7 @@ class ScopeApp(tk.Tk):
         Connection_frame = ttk.LabelFrame(self, text="Connection", padding=10)
         Connection_frame.pack(pady=10, padx=20, fill="x")
         
-        # 1. สร้าง Frame ย่อยแถวบน เพื่อให้จัดเรียงซ้ายขวาได้อิสระ
+        # สร้าง Frame ย่อยแถวบน สำหรับการเลือกอุปกรณ์และปุ่มเชื่อมต่อ
         top_row = ttk.Frame(Connection_frame)
         top_row.pack(fill="x", side="top", anchor="w")
         
@@ -97,7 +97,7 @@ class ScopeApp(tk.Tk):
         self.connect_button = ttk.Button(top_row, text="Connect", command=self.connect_scope)
         self.connect_button.pack(side="right", padx=0)
         
-        # 2. สร้าง Frame ย่อยแถวล่าง สำหรับการแสดง Status เพื่อให้ขึ้นบรรทัดใหม่
+        # สร้าง Frame ย่อยแถวล่าง สำหรับการแสดง Status เพื่อให้ขึ้นบรรทัดใหม่
         bottom_row = ttk.Frame(Connection_frame)
         bottom_row.pack(fill="x", side="top", anchor="w", pady=(10, 0))
         
@@ -137,13 +137,77 @@ class ScopeApp(tk.Tk):
         
         self.clear_button = ttk.Button(button_row, text="Clear Output", command=self.clear_output)
         self.clear_button.pack(side="left", padx=5)
-        
+
+        channel_frame = ttk.LabelFrame(control_frame, text="Channel Controls", padding=10)
+        channel_frame.pack(fill="x", pady=(0, 10))
+        channel_frame.columnconfigure(0, weight=1)
+
+        self.channel_widgets = {}
+        for ch in range(1, 5):
+            row_frame = ttk.Frame(channel_frame)
+            row_frame.pack(fill="x", pady=2)
+
+            ttk.Label(row_frame, text=f"CH{ch}:").pack(side="left", padx=(0, 6))
+
+            toggle_btn = ttk.Button(row_frame, text="OFF", width=8, command=lambda c=ch: self.toggle_channel(c))
+            toggle_btn.pack(side="left", padx=(0, 6))
+
+            ttk.Label(row_frame, text="Coupling:").pack(side="left", padx=(6, 2))
+            coupling_var = tk.StringVar(value="DC")
+            coupling_box = ttk.Combobox(row_frame, textvariable=coupling_var, values=["DC", "AC", "GND"], width=7, state="readonly")
+            coupling_box.pack(side="left", padx=2)
+
+            ttk.Label(row_frame, text="Probe:").pack(side="left", padx=(6, 2))
+            probe_var = tk.StringVar(value="10x")
+            probe_box = ttk.Combobox(row_frame, textvariable=probe_var, values=["1x", "10x", "100x"], width=7, state="readonly")
+            probe_box.pack(side="left", padx=2)
+
+            ttk.Label(row_frame, text="Scale:").pack(side="left", padx=(6, 2))
+            scale_var = tk.StringVar(value="1.0")
+            scale_entry = ttk.Entry(row_frame, textvariable=scale_var, width=8)
+            scale_entry.pack(side="left", padx=2)
+
+            ttk.Label(row_frame, text="Offset:").pack(side="left", padx=(6, 2))
+            offset_var = tk.StringVar(value="0.0")
+            offset_entry = ttk.Entry(row_frame, textvariable=offset_var, width=8)
+            offset_entry.pack(side="left", padx=2)
+
+            ttk.Label(row_frame, text="BW:").pack(side="left", padx=(6, 2))
+            bandwidth_var = tk.StringVar(value="FULL")
+            bandwidth_box = ttk.Combobox(row_frame, textvariable=bandwidth_var, values=["FULL", "20M"], width=7, state="readonly")
+            bandwidth_box.pack(side="left", padx=2)
+
+            invert_var = tk.BooleanVar(value=False)
+            invert_check = ttk.Checkbutton(row_frame, text="Invert", variable=invert_var)
+            invert_check.pack(side="left", padx=(6, 2))
+
+            apply_btn = ttk.Button(row_frame, text="Apply", command=lambda c=ch: self.apply_channel_settings(c))
+            apply_btn.pack(side="left", padx=(6, 0))
+
+            state_label = ttk.Label(row_frame, text="Disabled")
+            state_label.pack(side="left", padx=(10, 0))
+
+            self.channel_widgets[ch] = {
+                "toggle": toggle_btn,
+                "coupling": coupling_box,
+                "probe": probe_box,
+                "scale_entry": scale_entry,
+                "offset_entry": offset_entry,
+                "bandwidth": bandwidth_box,
+                "invert": invert_check,
+                "invert_var": invert_var,
+                "apply_button": apply_btn,
+                "state_label": state_label,
+                "enabled": False,
+            }
+
         self.output_title_label = ttk.Label(control_frame, text="Response / System Log:")
-        self.output_title_label.pack(anchor="w", padx=5, pady=(10, 2))
+        self.output_title_label.pack(anchor="w", padx=5, pady=(0, 2))
         
         self.output_text = tk.Text(control_frame, state=tk.DISABLED, bg="#f4f4f4")
         self.output_text.pack(fill="both", expand=True, padx=5, pady=(0, 5))
-        
+
+        self.set_channel_controls_state(tk.DISABLED)
         self.is_running = False
         self.refresh_devices()
 
@@ -154,6 +218,105 @@ class ScopeApp(tk.Tk):
         self.output_text.insert(tk.END, message + "\n")
         self.output_text.see(tk.END)
         self.output_text.config(state=tk.DISABLED)
+
+    def response_message(self, message):
+        self.log_message(message)
+
+    def set_channel_controls_state(self, state):
+        for widget_set in self.channel_widgets.values():
+            widget_set["toggle"].config(state=state)
+            widget_set["coupling"].config(state=state)
+            widget_set["probe"].config(state=state)
+            widget_set["scale_entry"].config(state=state)
+            widget_set["offset_entry"].config(state=state)
+            widget_set["bandwidth"].config(state=state)
+            widget_set["invert"].config(state=state)
+            widget_set["apply_button"].config(state=state)
+
+    def toggle_channel(self, channel):
+        widget_set = self.channel_widgets[channel]
+        if self.scope_controller.scope is None:
+            self.log_message(f"[!] Connect the instrument before controlling CH{channel}.")
+            return
+
+        widget_set["enabled"] = not widget_set["enabled"]
+        label = "ON" if widget_set["enabled"] else "OFF"
+        widget_set["toggle"].config(text=label)
+        widget_set["state_label"].config(text="Enabled" if widget_set["enabled"] else "Disabled")
+
+        try:
+            state = "ON" if widget_set["enabled"] else "OFF"
+            self.scope_controller.write(f":CHANnel{channel}:DISPlay {state}")
+            self.log_message(f"CH{channel} set to {state}")
+        except Exception as e:
+            self.log_message(f"[!] Error controlling CH{channel}: {e}")
+
+    def apply_channel_settings(self, channel):
+        widget_set = self.channel_widgets[channel]
+        if self.scope_controller.scope is None:
+            self.log_message(f"[!] Connect the instrument before setting CH{channel} parameters.")
+            return
+
+        try:
+            scale_value = float(widget_set["scale_entry"].get())
+            offset_value = float(widget_set["offset_entry"].get())
+            coupling_value = widget_set["coupling"].get().upper()
+            probe_value = widget_set["probe"].get().replace("x", "")
+            bandwidth_value = widget_set["bandwidth"].get().upper()
+            invert_value = "ON" if widget_set["invert_var"].get() else "OFF"
+
+            self.scope_controller.write(f":CHANnel{channel}:COUPling {coupling_value}")
+            self.scope_controller.write(f":CHANnel{channel}:PROBe {probe_value}")
+            self.scope_controller.write(f":CHANnel{channel}:SCALe {scale_value}")
+            self.scope_controller.write(f":CHANnel{channel}:OFFSet {offset_value}")
+            self.scope_controller.write(f":CHANnel{channel}:BANdwidth {bandwidth_value}")
+            self.scope_controller.write(f":CHANnel{channel}:INVert {invert_value}")
+            self.log_message(f"CH{channel} settings applied")
+        except ValueError:
+            self.log_message(f"[!] Invalid numeric value for CH{channel}")
+        except Exception as e:
+            self.log_message(f"[!] Error setting CH{channel} parameters: {e}")
+
+    def populate_channel_settings(self, channel):
+        widget_set = self.channel_widgets[channel]
+        if self.scope_controller.scope is None:
+            return
+
+        try:
+            display_state = self.scope_controller.query(f":CHANnel{channel}:DISPlay?").strip().upper()
+            enabled = display_state in {"1", "ON", "TRUE"}
+            widget_set["enabled"] = enabled
+            widget_set["toggle"].config(text="ON" if enabled else "OFF")
+            widget_set["state_label"].config(text="Enabled" if enabled else "Disabled")
+
+            coupling = self.scope_controller.query(f":CHANnel{channel}:COUPling?").strip().upper()
+            if coupling in {"DC", "AC", "GND"}:
+                widget_set["coupling"].set(coupling)
+
+            probe_response = self.scope_controller.query(f":CHANnel{channel}:PROBe?").strip()
+            if probe_response:
+                probe_value = probe_response.replace("X", "").replace("x", "")
+                if probe_value in {"1", "10", "100"}:
+                    widget_set["probe"].set(f"{probe_value}x")
+
+            scale_response = self.scope_controller.query(f":CHANnel{channel}:SCALe?").strip()
+            if scale_response:
+                widget_set["scale_entry"].delete(0, tk.END)
+                widget_set["scale_entry"].insert(0, scale_response)
+
+            offset_response = self.scope_controller.query(f":CHANnel{channel}:OFFSet?").strip()
+            if offset_response:
+                widget_set["offset_entry"].delete(0, tk.END)
+                widget_set["offset_entry"].insert(0, offset_response)
+
+            bandwidth_response = self.scope_controller.query(f":CHANnel{channel}:BANdwidth?").strip().upper()
+            if bandwidth_response in {"FULL", "20M"}:
+                widget_set["bandwidth"].set(bandwidth_response)
+
+            invert_response = self.scope_controller.query(f":CHANnel{channel}:INVert?").strip().upper()
+            widget_set["invert_var"].set(invert_response in {"1", "ON", "TRUE"})
+        except Exception as e:
+            self.log_message(f"[!] Unable to read current CH{channel} settings: {e}")
 
     def connect_scope(self):
         # กรณีที่ 1: ถ้าปุ่มเป็น DISCONNECT ให้ทำการตัดการเชื่อมต่อ
@@ -168,6 +331,7 @@ class ScopeApp(tk.Tk):
             # ล็อกปุ่มอื่นๆ
             self.run_toggle_button.config(state=tk.DISABLED)
             self.send_button.config(state=tk.DISABLED)
+            self.set_channel_controls_state(tk.DISABLED)
             return
 
         # กรณีที่ 2: ถ้าปุ่มเป็น Connect ให้เริ่มทำการเชื่อมต่อ
@@ -187,6 +351,9 @@ class ScopeApp(tk.Tk):
             # ปลดล็อกปุ่มควบคุมระบบหลัก
             self.run_toggle_button.config(state=tk.NORMAL)
             self.send_button.config(state=tk.NORMAL)
+            self.set_channel_controls_state(tk.NORMAL)
+            for channel in self.channel_widgets:
+                self.populate_channel_settings(channel)
             
         except RuntimeError as e:
             messagebox.showerror("Connection Error", str(e))
