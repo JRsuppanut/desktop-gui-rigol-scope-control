@@ -73,7 +73,7 @@ class ScopeApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Rigol Oscilloscope GUI from Suppanut")
-        self.geometry("1000x700")
+        self.geometry("1280x720")
         self.scope_controller = ScopeController()
         self.is_connected = False
         self.create_widgets()
@@ -139,61 +139,99 @@ class ScopeApp(tk.Tk):
         self.clear_button = ttk.Button(button_row, text="Clear Output", command=self.clear_output)
         self.clear_button.pack(side="left", padx=5)
 
-        channel_frame = ttk.LabelFrame(control_frame, text="Channel Controls", padding=10)
-        channel_frame.pack(fill="x", pady=(0, 10))
-        channel_frame.columnconfigure(0, weight=1)
+        # Channel panels: 2x2 grid with richer controls per channel
+        # Channel panels in a single horizontal row
+        panels_frame = ttk.Frame(control_frame)
+        panels_frame.pack(fill="x", pady=(0, 10))
 
         self.channel_widgets = {}
-        for ch in range(1, 5):
-            row_frame = ttk.Frame(channel_frame)
-            row_frame.pack(fill="x", pady=2)
+        for idx, ch in enumerate(range(1, 5)):
+            col = idx
+            ch_frame = ttk.LabelFrame(panels_frame, text=f"CH{ch}", padding=8)
+            ch_frame.grid(row=0, column=col, padx=6, pady=6, sticky="nsew")
+            panels_frame.columnconfigure(col, weight=1)
 
-            ttk.Label(row_frame, text=f"CH{ch}:").pack(side="left", padx=(0, 6))
+            top_row = ttk.Frame(ch_frame)
+            top_row.pack(fill="x", pady=(0, 6))
+            toggle_btn = ttk.Button(top_row, text="OFF", width=6, command=lambda c=ch: self.toggle_channel(c))
+            toggle_btn.pack(side="left")
 
-            toggle_btn = ttk.Button(row_frame, text="OFF", width=8, command=lambda c=ch: self.toggle_channel(c))
-            toggle_btn.pack(side="left", padx=(0, 6))
+            state_label = ttk.Label(top_row, text="Disabled")
+            state_label.pack(side="left", padx=(8,0))
 
-            ttk.Label(row_frame, text="Coupling:").pack(side="left", padx=(6, 2))
+            # controls grid inside channel
+            grid = ttk.Frame(ch_frame)
+            grid.pack(fill="x")
+
+            ttk.Label(grid, text="Coupling").grid(row=0, column=0, sticky="w", padx=4, pady=2)
             coupling_var = tk.StringVar(value="DC")
-            coupling_box = ttk.Combobox(row_frame, textvariable=coupling_var, values=["DC", "AC", "GND"], width=7, state="readonly")
-            coupling_box.pack(side="left", padx=2)
+            coupling_box = ttk.Combobox(grid, textvariable=coupling_var, values=["DC","AC","GND"], width=6, state="readonly")
+            coupling_box.grid(row=0, column=1, sticky="w", padx=4)
 
-            ttk.Label(row_frame, text="Probe:").pack(side="left", padx=(6, 2))
+            ttk.Label(grid, text="Probe").grid(row=0, column=2, sticky="w", padx=4)
             probe_var = tk.StringVar(value="10x")
-            probe_box = ttk.Combobox(row_frame, textvariable=probe_var, values=["1x", "10x", "100x"], width=7, state="readonly")
-            probe_box.pack(side="left", padx=2)
+            probe_box = ttk.Combobox(grid, textvariable=probe_var, values=["1x","10x","100x"], width=6, state="readonly")
+            probe_box.grid(row=0, column=3, sticky="w", padx=4)
 
-            ttk.Label(row_frame, text="Scale:").pack(side="left", padx=(6, 2))
-            scale_var = tk.StringVar(value="1.0")
-            scale_entry = ttk.Entry(row_frame, textvariable=scale_var, width=8)
-            scale_entry.pack(side="left", padx=2)
+            ttk.Label(grid, text="Vert scale").grid(row=1, column=0, sticky="w", padx=4, pady=2)
+            vertical_scale_var = tk.StringVar(value="1.0")
+            vertical_scale_entry = ttk.Entry(grid, textvariable=vertical_scale_var, width=8)
+            vertical_scale_entry.grid(row=1, column=1, sticky="w", padx=4)
 
-            ttk.Label(row_frame, text="Offset:").pack(side="left", padx=(6, 2))
-            offset_var = tk.StringVar(value="0.0")
-            offset_entry = ttk.Entry(row_frame, textvariable=offset_var, width=8)
-            offset_entry.pack(side="left", padx=2)
+            ttk.Label(grid, text="Vert unit").grid(row=1, column=2, sticky="w", padx=4)
+            vertical_unit_var = tk.StringVar(value="V/div")
+            vertical_unit_box = ttk.Combobox(grid, textvariable=vertical_unit_var, values=["V/div","mV/div"], width=8, state="readonly")
+            vertical_unit_box.grid(row=1, column=3, sticky="w", padx=4)
 
-            ttk.Label(row_frame, text="BW:").pack(side="left", padx=(6, 2))
-            bandwidth_var = tk.StringVar(value="FULL")
-            bandwidth_box = ttk.Combobox(row_frame, textvariable=bandwidth_var, values=["FULL", "20M"], width=7, state="readonly")
-            bandwidth_box.pack(side="left", padx=2)
+            ttk.Label(grid, text="Horiz scale").grid(row=2, column=0, sticky="w", padx=4, pady=2)
+            horizontal_scale_var = tk.StringVar(value="1.0")
+            horizontal_scale_entry = ttk.Entry(grid, textvariable=horizontal_scale_var, width=8)
+            horizontal_scale_entry.grid(row=2, column=1, sticky="w", padx=4)
+
+            ttk.Label(grid, text="Horiz unit").grid(row=2, column=2, sticky="w", padx=4)
+            horizontal_unit_var = tk.StringVar(value="s/div")
+            horizontal_unit_box = ttk.Combobox(grid, textvariable=horizontal_unit_var, values=["s/div","ms/div","us/div"], width=8, state="readonly")
+            horizontal_unit_box.grid(row=2, column=3, sticky="w", padx=4)
+
+            ttk.Label(grid, text="Vert pos").grid(row=3, column=0, sticky="w", padx=4, pady=2)
+            vertical_position_var = tk.StringVar(value="0.0")
+            vertical_position_entry = ttk.Entry(grid, textvariable=vertical_position_var, width=8)
+            vertical_position_entry.grid(row=3, column=1, sticky="w", padx=4)
+
+            ttk.Label(grid, text="Horiz pos").grid(row=3, column=2, sticky="w", padx=4)
+            horizontal_position_var = tk.StringVar(value="0.0")
+            horizontal_position_entry = ttk.Entry(grid, textvariable=horizontal_position_var, width=8)
+            horizontal_position_entry.grid(row=3, column=3, sticky="w", padx=4)
 
             invert_var = tk.BooleanVar(value=False)
-            invert_check = ttk.Checkbutton(row_frame, text="Invert", variable=invert_var)
-            invert_check.pack(side="left", padx=(6, 2))
+            invert_check = ttk.Checkbutton(grid, text="Invert", variable=invert_var)
+            invert_check.grid(row=4, column=0, sticky="w", padx=4, pady=2)
 
-            apply_btn = ttk.Button(row_frame, text="Apply", command=lambda c=ch: self.apply_channel_settings(c))
-            apply_btn.pack(side="left", padx=(6, 0))
+            bandwidth_var = tk.StringVar(value="FULL")
+            bandwidth_box = ttk.Combobox(grid, textvariable=bandwidth_var, values=["FULL","20M"], width=6, state="readonly")
+            bandwidth_box.grid(row=4, column=1, sticky="w", padx=4)
 
-            state_label = ttk.Label(row_frame, text="Disabled")
-            state_label.pack(side="left", padx=(10, 0))
+            # quick presets (common V/div choices)
+            presets_frame = ttk.Frame(ch_frame)
+            presets_frame.pack(fill="x", pady=(6,0))
+            for val in [0.1, 0.2, 0.5, 1, 2, 5]:
+                b = ttk.Button(presets_frame, text=f"{val}", width=4, command=lambda v=val, e=vertical_scale_entry: e.delete(0,tk.END) or e.insert(0,str(v)))
+                b.pack(side="left", padx=2)
+
+            apply_btn = ttk.Button(ch_frame, text="Apply", command=lambda c=ch: self.apply_channel_settings(c))
+            apply_btn.pack(side="right", pady=(6,0))
 
             self.channel_widgets[ch] = {
+                "frame": ch_frame,
                 "toggle": toggle_btn,
                 "coupling": coupling_box,
                 "probe": probe_box,
-                "scale_entry": scale_entry,
-                "offset_entry": offset_entry,
+                "vertical_scale_entry": vertical_scale_entry,
+                "vertical_unit": vertical_unit_box,
+                "horizontal_scale_entry": horizontal_scale_entry,
+                "horizontal_unit": horizontal_unit_box,
+                "vertical_position_entry": vertical_position_entry,
+                "horizontal_position_entry": horizontal_position_entry,
                 "bandwidth": bandwidth_box,
                 "invert": invert_check,
                 "invert_var": invert_var,
@@ -223,13 +261,38 @@ class ScopeApp(tk.Tk):
     def response_message(self, message):
         self.log_message(message)
 
+    def parse_unit_value(self, value_str, unit, unit_map):
+        try:
+            value = float(value_str)
+        except ValueError:
+            raise
+        return value * unit_map.get(unit, 1.0)
+
+    def format_float(self, value, precision=9):
+        text = format(value, f".{precision}f").rstrip("0").rstrip(".")
+        return text if text != "" else "0"
+
+    def select_display_unit(self, value, units):
+        if value == 0:
+            return 0, units[0][0]
+        for unit, factor in units:
+            display_value = value / factor
+            if abs(display_value) >= 0.1:
+                return display_value, unit
+        smallest_unit, smallest_factor = units[-1]
+        return value / smallest_factor, smallest_unit
+
     def set_channel_controls_state(self, state):
         for widget_set in self.channel_widgets.values():
             widget_set["toggle"].config(state=state)
             widget_set["coupling"].config(state=state)
             widget_set["probe"].config(state=state)
-            widget_set["scale_entry"].config(state=state)
-            widget_set["offset_entry"].config(state=state)
+            widget_set["vertical_scale_entry"].config(state=state)
+            widget_set["vertical_unit"].config(state=state)
+            widget_set["horizontal_scale_entry"].config(state=state)
+            widget_set["horizontal_unit"].config(state=state)
+            widget_set["vertical_position_entry"].config(state=state)
+            widget_set["horizontal_position_entry"].config(state=state)
             widget_set["bandwidth"].config(state=state)
             widget_set["invert"].config(state=state)
             widget_set["apply_button"].config(state=state)
@@ -258,9 +321,48 @@ class ScopeApp(tk.Tk):
             self.log_message(f"[!] Connect the instrument before setting CH{channel} parameters.")
             return
 
+        previous_values = {
+            "vertical_scale": widget_set["vertical_scale_entry"].get(),
+            "vertical_unit": widget_set["vertical_unit"].get(),
+            "horizontal_scale": widget_set["horizontal_scale_entry"].get(),
+            "horizontal_unit": widget_set["horizontal_unit"].get(),
+            "vertical_position": widget_set["vertical_position_entry"].get(),
+            "horizontal_position": widget_set["horizontal_position_entry"].get(),
+            "coupling": widget_set["coupling"].get(),
+            "probe": widget_set["probe"].get(),
+            "bandwidth": widget_set["bandwidth"].get(),
+            "invert": widget_set["invert_var"].get(),
+        }
+
+        def restore_previous_values():
+            widget_set["vertical_scale_entry"].delete(0, tk.END)
+            widget_set["vertical_scale_entry"].insert(0, previous_values["vertical_scale"])
+            widget_set["vertical_unit"].set(previous_values["vertical_unit"])
+            widget_set["horizontal_scale_entry"].delete(0, tk.END)
+            widget_set["horizontal_scale_entry"].insert(0, previous_values["horizontal_scale"])
+            widget_set["horizontal_unit"].set(previous_values["horizontal_unit"])
+            widget_set["vertical_position_entry"].delete(0, tk.END)
+            widget_set["vertical_position_entry"].insert(0, previous_values["vertical_position"])
+            widget_set["horizontal_position_entry"].delete(0, tk.END)
+            widget_set["horizontal_position_entry"].insert(0, previous_values["horizontal_position"])
+            widget_set["coupling"].set(previous_values["coupling"])
+            widget_set["probe"].set(previous_values["probe"])
+            widget_set["bandwidth"].set(previous_values["bandwidth"])
+            widget_set["invert_var"].set(previous_values["invert"])
+
         try:
-            scale_value = float(widget_set["scale_entry"].get())
-            offset_value = float(widget_set["offset_entry"].get())
+            vertical_scale_value = self.parse_unit_value(
+                widget_set["vertical_scale_entry"].get(),
+                widget_set["vertical_unit"].get(),
+                {"V/div": 1.0, "mV/div": 1e-3}
+            )
+            horizontal_scale_value = self.parse_unit_value(
+                widget_set["horizontal_scale_entry"].get(),
+                widget_set["horizontal_unit"].get(),
+                {"s/div": 1.0, "ms/div": 1e-3, "us/div": 1e-6}
+            )
+            vertical_position = float(widget_set["vertical_position_entry"].get())
+            horizontal_position = float(widget_set["horizontal_position_entry"].get())
             coupling_value = widget_set["coupling"].get().upper()
             probe_value = widget_set["probe"].get().replace("x", "")
             bandwidth_value = widget_set["bandwidth"].get().upper()
@@ -268,15 +370,19 @@ class ScopeApp(tk.Tk):
 
             self.scope_controller.write(f":CHANnel{channel}:COUPling {coupling_value}")
             self.scope_controller.write(f":CHANnel{channel}:PROBe {probe_value}")
-            self.scope_controller.write(f":CHANnel{channel}:SCALe {scale_value}")
-            self.scope_controller.write(f":CHANnel{channel}:OFFSet {offset_value}")
+            self.scope_controller.write(f":CHANnel{channel}:SCALe {vertical_scale_value}")
+            self.scope_controller.write(f":CHANnel{channel}:OFFSet {vertical_position}")
+            self.scope_controller.write(f":TIMebase:SCALe {horizontal_scale_value}")
+            self.scope_controller.write(f":TIMebase:OFFSet {horizontal_position}")
             self.scope_controller.write(f":CHANnel{channel}:BANdwidth {bandwidth_value}")
             self.scope_controller.write(f":CHANnel{channel}:INVert {invert_value}")
             self.log_message(f"CH{channel} settings applied")
         except ValueError:
-            self.log_message(f"[!] Invalid numeric value for CH{channel}")
+            restore_previous_values()
+            self.log_message(f"[!] Invalid numeric value for CH{channel}; restored previous values.")
         except Exception as e:
-            self.log_message(f"[!] Error setting CH{channel} parameters: {e}")
+            restore_previous_values()
+            self.log_message(f"[!] Error setting CH{channel} parameters: {e}; restored previous values.")
 
     def populate_channel_settings(self, channel):
         widget_set = self.channel_widgets[channel]
@@ -302,13 +408,35 @@ class ScopeApp(tk.Tk):
 
             scale_response = self.scope_controller.query(f":CHANnel{channel}:SCALe?").strip()
             if scale_response:
-                widget_set["scale_entry"].delete(0, tk.END)
-                widget_set["scale_entry"].insert(0, scale_response)
+                scale_value = float(scale_response)
+                display_value, display_unit = self.select_display_unit(
+                    scale_value,
+                    [("V/div", 1.0), ("mV/div", 1e-3)]
+                )
+                widget_set["vertical_unit"].set(display_unit)
+                widget_set["vertical_scale_entry"].delete(0, tk.END)
+                widget_set["vertical_scale_entry"].insert(0, self.format_float(display_value))
 
             offset_response = self.scope_controller.query(f":CHANnel{channel}:OFFSet?").strip()
             if offset_response:
-                widget_set["offset_entry"].delete(0, tk.END)
-                widget_set["offset_entry"].insert(0, offset_response)
+                widget_set["vertical_position_entry"].delete(0, tk.END)
+                widget_set["vertical_position_entry"].insert(0, self.format_float(float(offset_response)))
+
+            timebase_scale = self.scope_controller.query(":TIMebase:SCALe?").strip()
+            if timebase_scale:
+                timebase_value = float(timebase_scale)
+                display_value, display_unit = self.select_display_unit(
+                    timebase_value,
+                    [("s/div", 1.0), ("ms/div", 1e-3), ("us/div", 1e-6)]
+                )
+                widget_set["horizontal_unit"].set(display_unit)
+                widget_set["horizontal_scale_entry"].delete(0, tk.END)
+                widget_set["horizontal_scale_entry"].insert(0, self.format_float(display_value))
+
+            timebase_offset = self.scope_controller.query(":TIMebase:OFFSet?").strip()
+            if timebase_offset:
+                widget_set["horizontal_position_entry"].delete(0, tk.END)
+                widget_set["horizontal_position_entry"].insert(0, self.format_float(float(timebase_offset)))
 
             bandwidth_response = self.scope_controller.query(f":CHANnel{channel}:BANdwidth?").strip().upper()
             if bandwidth_response in {"FULL", "20M"}:
