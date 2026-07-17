@@ -75,6 +75,7 @@ class ScopeApp(tk.Tk):
         self.title("Rigol Oscilloscope GUI from Suppanut")
         self.geometry("1000x700")
         self.scope_controller = ScopeController()
+        self.is_connected = False
         self.create_widgets()
 
     def create_widgets(self):
@@ -320,8 +321,9 @@ class ScopeApp(tk.Tk):
 
     def connect_scope(self):
         # กรณีที่ 1: ถ้าปุ่มเป็น DISCONNECT ให้ทำการตัดการเชื่อมต่อ
-        if self.connect_button.cget("text") == "DISCONNECT":
+        if self.is_connected:
             self.scope_controller.disconnect()
+            self.is_connected = False
             
             # อัปเดต UI กลับสู่สเตตเริ่มต้น
             self.connect_button.config(text="Connect")
@@ -345,6 +347,7 @@ class ScopeApp(tk.Tk):
             self.log_message(f"Connected to: {idn}")
             self.response_message(f"Connected to: {idn}")
             
+            self.is_connected = True
             self.connect_button.config(text="Disconnect")
             self.status_label.config(text=f"{idn}", foreground="#4CAF50")
             
