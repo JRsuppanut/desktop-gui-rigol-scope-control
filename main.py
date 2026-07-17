@@ -167,7 +167,7 @@ class ScopeApp(tk.Tk):
 
         ttk.Label(mode_row, text="Mode:").pack(side="left", padx=5)
         self.mode_buttons = {}
-        for label, scpi_mode in [("AUTO", "AUTO"), ("NORMAL", "NORM"), ("SINGLE", "SING")]:
+        for label, scpi_mode in [("AUTO", "AUTO"), ("NORMAL", "NORMAL"), ("SINGLE", "SINGLE")]:
             btn = ttk.Button(mode_row, text=label, state=tk.DISABLED,
                              command=lambda m=scpi_mode: self.set_scope_mode(m))
             btn.pack(side="left", padx=4)
@@ -631,11 +631,33 @@ class ScopeApp(tk.Tk):
         if self.scope_controller.scope is None:
             self.log_message("[!] Connect the instrument before changing mode.")
             return
-        try:
-            self.scope_controller.write(f":TRIGger:MODE {mode}")
-            self.log_message(f"Mode set to {mode}")
-        except Exception as e:
-            self.log_message(f"[!] Unable to set mode: {e}")
+
+        mode_map = {
+            "AUTO": ("AUTO", "AUTO"),
+            "NORMAL": ("NORM", "NORMAL"),
+            "SINGLE": ("SING", "SINGLE"),
+        }
+
+        if mode not in mode_map:
+            self.log_message(f"[!] Unsupported mode: {mode}")
+            return
+
+        sweep_value, mode_value = mode_map[mode]
+        attempts = [
+            (":TRIGger:SWEep", sweep_value),
+            (":TRIGger:MODE", mode_value),
+        ]
+
+        last_error = None
+        for command, value in attempts:
+            try:
+                self.scope_controller.write(f"{command} {value}")
+                self.log_message(f"Mode set to {mode}")
+                return
+            except Exception as e:
+                last_error = e
+
+        self.log_message(f"[!] Unable to set mode {mode}: {last_error}")
 
     def apply_trigger_settings(self):
         if self.scope_controller.scope is None:
