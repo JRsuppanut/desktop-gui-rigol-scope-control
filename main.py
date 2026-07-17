@@ -75,6 +75,8 @@ class ScopeApp(tk.Tk):
         self.title("Rigol Oscilloscope GUI from Suppanut")
         self.geometry("1280x720")
         self.scope_controller = ScopeController()
+        self.command_history = []
+        self.max_history_entries = 30
         self.is_connected = False
         self.create_widgets()
 
@@ -129,6 +131,27 @@ class ScopeApp(tk.Tk):
 
         self.send_button = ttk.Button(command_row, text="Send", command=self.send_command, state=tk.DISABLED)
         self.send_button.pack(side="left", padx=5)
+        
+        history_row = ttk.Frame(control_frame)
+        history_row.pack(fill="both", pady=(0, 8), expand=True)
+
+        history_label = ttk.Label(history_row, text="Command History:")
+        history_label.pack(anchor="w", padx=5, pady=(0, 2))
+
+        history_frame = ttk.Frame(history_row)
+        history_frame.pack(fill="both", expand=True, padx=5)
+
+        self.history_listbox = tk.Listbox(history_frame, height=5, exportselection=False)
+        self.history_listbox.pack(side="left", fill="both", expand=True)
+        self.history_listbox.bind("<<ListboxSelect>>", self.on_history_select)
+        self.history_listbox.bind("<Double-Button-1>", self.on_history_activate)
+
+        history_scrollbar = ttk.Scrollbar(history_frame, orient="vertical", command=self.history_listbox.yview)
+        history_scrollbar.pack(side="right", fill="y")
+        self.history_listbox.config(yscrollcommand=history_scrollbar.set)
+
+        self.clear_history_button = ttk.Button(history_row, text="Clear History", command=self.clear_history)
+        self.clear_history_button.pack(anchor="e", padx=5, pady=(4, 0))
         
         button_row = ttk.Frame(control_frame)
         button_row.pack(fill="x", pady=(0, 8))
@@ -550,6 +573,7 @@ class ScopeApp(tk.Tk):
         cmd = self.cmd_entry.get().strip()
         if not cmd:
             return
+        self.append_history(cmd)
             
         try:
             self.log_message(f"> Sending: {cmd}")
@@ -566,6 +590,37 @@ class ScopeApp(tk.Tk):
         except Exception as e:
             self.log_message(f"[!] Error: {e}")
             self.response_message(f"[!] Error: {e}")
+
+    def append_history(self, command):
+        if command in self.command_history:
+            self.command_history.remove(command)
+        self.command_history.insert(0, command)
+        if len(self.command_history) > self.max_history_entries:
+            self.command_history = self.command_history[: self.max_history_entries]
+        self.history_listbox.delete(0, tk.END)
+        for entry in self.command_history:
+            self.history_listbox.insert(tk.END, entry)
+
+    def on_history_select(self, event):
+        # Show selected command in the entry field when a history item is selected
+        selection = self.history_listbox.curselection()
+        if selection:
+            command = self.history_listbox.get(selection[0])
+            self.cmd_entry.delete(0, tk.END)
+            self.cmd_entry.insert(0, command)
+
+    def on_history_activate(self, event):
+        # Double-click a history item to resend it immediately
+        selection = self.history_listbox.curselection()
+        if selection:
+            command = self.history_listbox.get(selection[0])
+            self.cmd_entry.delete(0, tk.END)
+            self.cmd_entry.insert(0, command)
+            self.send_command()
+
+    def clear_history(self):
+        self.command_history.clear()
+        self.history_listbox.delete(0, tk.END)
 
     def clear_output(self):
         self.output_text.config(state=tk.NORMAL)
